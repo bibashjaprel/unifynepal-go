@@ -5,6 +5,7 @@ import (
 
 	"github.com/bibashjaprel/unifynepal-api/internal/config"
 	"github.com/bibashjaprel/unifynepal-api/internal/modules/auth"
+	"github.com/bibashjaprel/unifynepal-api/internal/modules/billing"
 	"github.com/bibashjaprel/unifynepal-api/internal/modules/customers"
 	"github.com/bibashjaprel/unifynepal-api/internal/modules/products"
 	"github.com/gin-gonic/gin"
@@ -29,4 +30,5 @@ func Register(r *gin.Engine, db *gorm.DB, cfg config.Config) {
 	auth.RegisterRoutes(api, db, cfg)
 	products.RegisterRoutes(api, db, cfg)
 	customers.RegisterRoutes(api, db, cfg)
+	billing.RegisterRoutes(api, db, cfg)
 }
