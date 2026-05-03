@@ -85,7 +85,31 @@ func (h Handler) Signup(c *gin.Context) {
 			Role:   "owner",
 		}
 
-		return tx.Create(&member).Error
+		if err := tx.Create(&member).Error; err != nil {
+			return err
+		}
+
+		// Create default 30-day trial subscription
+		var starterPlan models.SubscriptionPlan
+		if err := tx.Where("name = ? AND is_active = ?", "Starter", true).First(&starterPlan).Error; err == nil {
+			now := time.Now()
+			trialEnds := now.AddDate(0, 0, 30)
+
+			subscription := models.ShopSubscription{
+				ShopID:             shop.ID,
+				PlanID:             starterPlan.ID,
+				Status:             "trialing",
+				TrialEndsAt:        &trialEnds,
+				CurrentPeriodStart: &now,
+				CurrentPeriodEnd:   &trialEnds,
+			}
+
+			if err := tx.Create(&subscription).Error; err != nil {
+				return err
+			}
+		}
+
+		return nil
 	})
 
 	if err != nil {
