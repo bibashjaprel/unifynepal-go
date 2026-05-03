@@ -25,7 +25,7 @@ func main() {
 	router.Use(middleware.RequestID())
 	router.Use(middleware.RequestLogger())
 	router.Use(middleware.Recovery())
-
+	router.Use(middleware.CORS(cfg))
 	routes.Register(router, db, cfg)
 
 	log.Println("Starting", cfg.AppName, "on port", cfg.AppPort)
