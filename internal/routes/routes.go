@@ -5,6 +5,7 @@ import (
 
 	"github.com/bibashjaprel/unifynepal-api/internal/config"
 	"github.com/bibashjaprel/unifynepal-api/internal/modules/auth"
+	"github.com/bibashjaprel/unifynepal-api/internal/modules/products"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
@@ -23,5 +24,7 @@ func Register(r *gin.Engine, db *gorm.DB, cfg config.Config) {
 	})
 
 	api := r.Group("/api/v1")
+
 	auth.RegisterRoutes(api, db, cfg)
+	products.RegisterRoutes(api, db, cfg)
 }

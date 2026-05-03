@@ -16,6 +16,7 @@ func AutoMigrate(db *gorm.DB) {
 		&models.Customer{},
 		&models.Bill{},
 		&models.BillItem{},
+		&models.CustomerLedgerEntry{},
 	)
 	if err != nil {
 		log.Fatal("Migration failed: ", err)
