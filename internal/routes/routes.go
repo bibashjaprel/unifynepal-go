@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/bibashjaprel/unifynepal-api/internal/config"
+	"github.com/bibashjaprel/unifynepal-api/internal/modules/auth"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
@@ -22,19 +23,5 @@ func Register(r *gin.Engine, db *gorm.DB, cfg config.Config) {
 	})
 
 	api := r.Group("/api/v1")
-
-	api.GET("/ready", func(c *gin.Context) {
-		sqlDB, err := db.DB()
-		if err != nil {
-			c.JSON(http.StatusServiceUnavailable, gin.H{"database": "not_ready"})
-			return
-		}
-
-		if err := sqlDB.Ping(); err != nil {
-			c.JSON(http.StatusServiceUnavailable, gin.H{"database": "not_ready"})
-			return
-		}
-
-		c.JSON(http.StatusOK, gin.H{"database": "ready"})
-	})
+	auth.RegisterRoutes(api, db, cfg)
 }
