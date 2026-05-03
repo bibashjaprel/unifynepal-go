@@ -19,6 +19,7 @@ func main() {
 
 	db := database.Connect(cfg.DatabaseURL)
 	database.AutoMigrate(db)
+	database.Seed(db)
 
 	router := gin.New()
 
