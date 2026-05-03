@@ -8,21 +8,29 @@ import (
 )
 
 type JWTClaims struct {
-	UserID uuid.UUID `json:"user_id"`
-	Email  string    `json:"email"`
+	UserID  uuid.UUID `json:"user_id"`
+	Email   string    `json:"email"`
+	TokenID string    `json:"token_id"`
 	jwt.RegisteredClaims
 }
 
-func GenerateToken(userID uuid.UUID, email string, secret string, expiresInHours int) (string, error) {
+func GenerateToken(userID uuid.UUID, email string, secret string, expiresInHours int) (string, string, time.Time, error) {
+	tokenID := uuid.New().String()
+	expiresAt := time.Now().Add(time.Duration(expiresInHours) * time.Hour)
+
 	claims := JWTClaims{
-		UserID: userID,
-		Email:  email,
+		UserID:  userID,
+		Email:   email,
+		TokenID: tokenID,
 		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Duration(expiresInHours) * time.Hour)),
+			ID:        tokenID,
+			ExpiresAt: jwt.NewNumericDate(expiresAt),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 		},
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	return token.SignedString([]byte(secret))
+	signedToken, err := token.SignedString([]byte(secret))
+
+	return signedToken, tokenID, expiresAt, err
 }

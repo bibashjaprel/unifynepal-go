@@ -2,11 +2,14 @@ package auth
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/bibashjaprel/unifynepal-api/internal/config"
+	"github.com/bibashjaprel/unifynepal-api/internal/middleware"
 	"github.com/bibashjaprel/unifynepal-api/internal/models"
 	"github.com/bibashjaprel/unifynepal-api/internal/utils"
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
@@ -33,6 +36,7 @@ func RegisterRoutes(rg *gin.RouterGroup, db *gorm.DB, cfg config.Config) {
 	auth := rg.Group("/auth")
 	auth.POST("/signup", h.Signup)
 	auth.POST("/login", h.Login)
+	auth.POST("/logout", middleware.AuthRequired(db, cfg.JWTSecret), h.Logout)
 }
 
 func (h Handler) Signup(c *gin.Context) {
@@ -89,9 +93,30 @@ func (h Handler) Signup(c *gin.Context) {
 		return
 	}
 
-	token, err := utils.GenerateToken(user.ID, user.Email, h.Cfg.JWTSecret, h.Cfg.JWTExpiresInHours)
+	token, tokenID, expiresAt, err := utils.GenerateToken(
+		user.ID,
+		user.Email,
+		h.Cfg.JWTSecret,
+		h.Cfg.JWTExpiresInHours,
+	)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"message": "failed to generate token"})
+		return
+	}
+
+	session := models.UserSession{
+		UserID:     user.ID,
+		ShopID:     &shop.ID,
+		TokenID:    tokenID,
+		IPAddress:  c.ClientIP(),
+		UserAgent:  c.GetHeader("User-Agent"),
+		LastSeenAt: time.Now(),
+		ExpiresAt:  expiresAt,
+		IsActive:   true,
+	}
+
+	if err := h.DB.Create(&session).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "failed to create session"})
 		return
 	}
 
@@ -100,6 +125,7 @@ func (h Handler) Signup(c *gin.Context) {
 		"token":   token,
 		"user":    user,
 		"shop":    shop,
+		"session": session,
 	})
 }
 
@@ -121,9 +147,37 @@ func (h Handler) Login(c *gin.Context) {
 		return
 	}
 
-	token, err := utils.GenerateToken(user.ID, user.Email, h.Cfg.JWTSecret, h.Cfg.JWTExpiresInHours)
+	token, tokenID, expiresAt, err := utils.GenerateToken(
+		user.ID,
+		user.Email,
+		h.Cfg.JWTSecret,
+		h.Cfg.JWTExpiresInHours,
+	)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"message": "failed to generate token"})
+		return
+	}
+
+	var member models.ShopMember
+	var shopIDPtr *uuid.UUID
+
+	if err := h.DB.Where("user_id = ?", user.ID).Order("created_at asc").First(&member).Error; err == nil {
+		shopIDPtr = &member.ShopID
+	}
+
+	session := models.UserSession{
+		UserID:     user.ID,
+		ShopID:     shopIDPtr,
+		TokenID:    tokenID,
+		IPAddress:  c.ClientIP(),
+		UserAgent:  c.GetHeader("User-Agent"),
+		LastSeenAt: time.Now(),
+		ExpiresAt:  expiresAt,
+		IsActive:   true,
+	}
+
+	if err := h.DB.Create(&session).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "failed to create session"})
 		return
 	}
 
@@ -131,5 +185,27 @@ func (h Handler) Login(c *gin.Context) {
 		"message": "login successful",
 		"token":   token,
 		"user":    user,
+		"session": session,
 	})
+}
+
+func (h Handler) Logout(c *gin.Context) {
+	sessionValue, exists := c.Get("session")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"message": "session not found"})
+		return
+	}
+
+	session := sessionValue.(models.UserSession)
+	now := time.Now()
+
+	if err := h.DB.Model(&session).Updates(map[string]interface{}{
+		"is_active":  false,
+		"revoked_at": now,
+	}).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "failed to logout"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "logged out successfully"})
 }
