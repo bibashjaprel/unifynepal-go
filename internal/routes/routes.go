@@ -11,6 +11,7 @@ import (
 	"github.com/bibashjaprel/unifynepal-api/internal/modules/customers"
 	"github.com/bibashjaprel/unifynepal-api/internal/modules/dashboard"
 	"github.com/bibashjaprel/unifynepal-api/internal/modules/inventory"
+	"github.com/bibashjaprel/unifynepal-api/internal/modules/notifications"
 	"github.com/bibashjaprel/unifynepal-api/internal/modules/products"
 	"github.com/bibashjaprel/unifynepal-api/internal/modules/subscriptions"
 	"github.com/bibashjaprel/unifynepal-api/internal/modules/udharo"
@@ -43,4 +44,5 @@ func Register(r *gin.Engine, db *gorm.DB, cfg config.Config) {
 	audit.RegisterRoutes(api, db, cfg)
 	subscriptions.RegisterRoutes(api, db, cfg)
 	admin.RegisterRoutes(api, db, cfg)
+	notifications.RegisterRoutes(api, db, cfg)
 }
