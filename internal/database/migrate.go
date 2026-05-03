@@ -16,7 +16,14 @@ func AutoMigrate(db *gorm.DB) {
 		&models.Customer{},
 		&models.Bill{},
 		&models.BillItem{},
+		&models.Payment{},
 		&models.CustomerLedgerEntry{},
+		&models.StockMovement{},
+		&models.SubscriptionPlan{},
+		&models.ShopSubscription{},
+		&models.Notification{},
+		&models.AuditLog{},
+		&models.UserSession{},
 	)
 	if err != nil {
 		log.Fatal("Migration failed: ", err)
