@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"errors"
 	"net/http"
 	"time"
 
@@ -41,14 +42,37 @@ func RegisterRoutes(rg *gin.RouterGroup, db *gorm.DB, cfg config.Config) {
 
 func (h Handler) Signup(c *gin.Context) {
 	var req SignupRequest
+
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"message": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{
+			"message": err.Error(),
+		})
+		return
+	}
+
+	// Check if email already exists
+	var existingUser models.User
+	err := h.DB.Where("email = ?", req.Email).First(&existingUser).Error
+
+	if err == nil {
+		c.JSON(http.StatusConflict, gin.H{
+			"message": "email already exists",
+		})
+		return
+	}
+
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"message": "failed to check email",
+		})
 		return
 	}
 
 	passwordHash, err := utils.HashPassword(req.Password)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"message": "failed to hash password"})
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"message": "failed to hash password",
+		})
 		return
 	}
 
@@ -91,7 +115,10 @@ func (h Handler) Signup(c *gin.Context) {
 
 		// Create default 30-day trial subscription
 		var starterPlan models.SubscriptionPlan
-		if err := tx.Where("name = ? AND is_active = ?", "Starter", true).First(&starterPlan).Error; err == nil {
+
+		if err := tx.Where("name = ? AND is_active = ?", "Starter", true).
+			First(&starterPlan).Error; err == nil {
+
 			now := time.Now()
 			trialEnds := now.AddDate(0, 0, 30)
 
@@ -113,7 +140,9 @@ func (h Handler) Signup(c *gin.Context) {
 	})
 
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"message": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{
+			"message": err.Error(),
+		})
 		return
 	}
 
@@ -123,8 +152,11 @@ func (h Handler) Signup(c *gin.Context) {
 		h.Cfg.JWTSecret,
 		h.Cfg.JWTExpiresInHours,
 	)
+
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"message": "failed to generate token"})
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"message": "failed to generate token",
+		})
 		return
 	}
 
@@ -140,7 +172,9 @@ func (h Handler) Signup(c *gin.Context) {
 	}
 
 	if err := h.DB.Create(&session).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"message": "failed to create session"})
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"message": "failed to create session",
+		})
 		return
 	}
 
